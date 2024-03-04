@@ -10,8 +10,10 @@ const nextId = require("../utils/nextId");
 // Add handlers and middleware functions to create, read, update, delete, 
 // and list orders.
 
-//===middleware function to validate the request body==========
-//=== create-order snd update-order validation==================================
+//===middleware function to validate the request body===========================
+//=== create-order and update-order validation==================================
+
+//=====function to check that every property of the order object exists================
 function bodyDataHas(propertyName) {
     return function (req, res, next) {
        const { data = {} } = req.body;  
@@ -24,21 +26,23 @@ function bodyDataHas(propertyName) {
      };  
    }
 
+
+
+//====functions to make sure the properties of the order object are defined correctly========
 function dishQuantityIsValid(req, res, next){
     const { data: { dishes } = {} } = req.body;
     for(let orderItem = 0; orderItem < dishes.length; orderItem++){
         const { quantity } = dishes[orderItem];
-    if(!( quantity && Number.isInteger(quantity) && quantity > 0)){
-     next({status:400,
-          message: `dish ${orderItem} must have a quantity that is an integer greater than 0`
-         });
-     }
-}
-  next();
-}
+        if( !( quantity && Number.isInteger(quantity) && quantity > 0 ) ){
+            next({status:400,
+                  message: `dish ${orderItem} must have a quantity that is an integer greater than 0`
+                 });
+          };
+     };
+     next();
+ }
 
-//===Check if id property exists in the request body and if it 
-//===matches the order.id for the order being changed, for update-order handler 
+
 function idPropertyIsValid(req, res, next){
     const { orderId } = req.params;
     const { data: { id } = {} } = req.body;
@@ -73,12 +77,14 @@ function dishesPropertyIsValid(req, res, next){
     }
     next({
         status: 400,
-        message: `Values of the 'status' property must be one of ${validStatus}. Recieved: ${status}`,
+        message: `Values of the 'status' property must be one of ${validStatus}. Received: ${status}`,
     })
    }
+
+
 //===checks if status is "pending" for order-delete handler
  function statusPending(req, res, next){
-    const { data: { status } = {} } = req.body;
+    const { status } = res.locals.order;
     if( status === "pending"){
        return next();
     }
@@ -87,7 +93,8 @@ function dishesPropertyIsValid(req, res, next){
          });
  }
 
-   function orderDelivered(req, res, next){
+
+function orderDelivered(req, res, next){
     if( res.locals.order.status === "delivered" ){
      next({ status: 400,
             message: "A delivered order cannot be changed"
@@ -106,8 +113,7 @@ function orderExists(req, res, next){
     next({ status: 404,
            message: `Order id not found: ${orderId}`});
 }
-
-//=========destroy-order handler (DELETE /orders/:orderId)================
+//=====route handlers for list, create, read, update, and delete.===============
 function destroy(req, res){
     const { orderId } = req.params;
     const indexOfOrder = orders.findIndex(order => order.id === orderId);
@@ -115,15 +121,12 @@ function destroy(req, res){
     orders.splice(indexOfOrder,1);
     }
     res.sendStatus(204);
-
 }
 
-//========read-order handler (GET /orders/:orderId)===========
 function read(req, res){
     res.json({ data: res.locals.order });
 }
 
-//========update-order handler (PUT /order/:orderId)================
 function update(req, res){
     const { data: {deliverTo, mobileNumber, status, dishes } = {} } = req.body;
     const order = res.locals.order;
@@ -134,19 +137,6 @@ function update(req, res){
     res.json({ data: order });
 }
 
-// function create(req, res){
-//     const { data: { name, description, price, image_url } = {} } = req.body;
-//     const newDish = {
-//       id: nextId(),
-//       name,
-//       description,
-//       price,
-//       image_url,
-//     };
-//     dishes.push(newDish);
-//     res.status(201).json({ data: newDish });
-//     }
-
 function create(req, res){
     const { data: { deliverTo, mobileNumber, status, dishes } = {} } = req.body;
     const newOrder = {
@@ -155,7 +145,7 @@ function create(req, res){
         mobileNumber,
         status,
         dishes,
-    };
+    }
     orders.push(newOrder);
     res.status(201).json({ data: newOrder });
 }
@@ -169,18 +159,18 @@ module.exports ={
                  list,
                  create: [bodyDataHas("deliverTo"),
                           bodyDataHas("mobileNumber"),
-                          bodyDataHas("status"),
+                        /*bodyDataHas("status"),*/
                           bodyDataHas("dishes"),
-                          statusPropertyIsValid,
+                        /*statusPropertyIsValid,*/
                           dishesPropertyIsValid,
                           dishQuantityIsValid,
                           create],
                    read: [orderExists,
                           read],
-                 update: [orderExists,                         
+                 update: [orderExists,
                           bodyDataHas("deliverTo"),
                           bodyDataHas("mobileNumber"),
-                          bodyDataHas("status"),
+                        /*bodyDataHas("status"),*/
                           bodyDataHas("dishes"),
                           idPropertyIsValid,
                           statusPropertyIsValid,
@@ -192,3 +182,38 @@ module.exports ={
                           statusPending,
                           destroy],
 }
+
+
+////==violates principle of function doing one thing=====================
+// const validateProperties = (req, res, next) => {
+//   const { data } = req.body;
+//   const requiredProps = ['deliverTo', 'mobileNumber', 'dishes'];
+
+//   requiredProps.forEach(prop => {
+//     if (!data[prop]) {
+//       next({
+//           status: 400,
+//           message: `Order must include a ${prop}`
+//       });
+//     }
+//     if (prop === 'dishes') {
+//       // check if data['dishes'] is an array OR has length > 0 ||
+//       if (data[prop].length === 0 || !Array.isArray(data[prop])) {
+//           next({
+//               status: 400,
+//               message: 'Order must include at least one dish'
+//           });
+//       }
+//       // check if each dish contains quantity
+//       data[prop].forEach((dish, index) => {
+//         if (!dish['quantity'] || !Number.isInteger(dish['quantity']) || dish['quantity'] <= 0) {
+//           next({
+//               status: 400,
+//               message: `Dish ${index} must have a quantity that is an integer greater than 0`
+//           });
+//         }
+//       })
+//     }
+//   })
+//   return next();
+// }
