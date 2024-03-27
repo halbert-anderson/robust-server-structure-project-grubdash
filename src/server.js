@@ -1,32 +1,12 @@
-const express = require('express');
-const cors = require('cors');
+const { PORT = 5000 } = process.env;
 
-const app = express();
-const router = express.Router();
-const PORT = process.env.PORT || 5001;
+const path = require("path");
+const app = require(path.resolve(
+  `${process.env.SOLUTION_PATH || ""}`,
+  "src/app"
+));
 
-router.get('/', cors(), (req, res) => {
-  res.json({ message: 'Hello Render!' });
-});
-
-app.use('/', router);
-
-app.listen(PORT, () => {
-  console.log(`Server running on ${PORT} `);
-});
+const listener = () => console.log(`Listening on Port ${PORT}!`);
+app.listen(PORT, listener);
 
 module.exports = app;
-
-
-// const { PORT = 5000 } = process.env;
-
-// const path = require("path");
-// const app = require(path.resolve(
-//   `${process.env.SOLUTION_PATH || ""}`,
-//   "src/app"
-// ));
-
-// const listener = () => console.log(`Listening on Port ${PORT}!`);
-// app.listen(PORT, listener);
-
-
